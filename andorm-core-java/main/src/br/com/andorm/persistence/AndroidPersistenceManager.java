@@ -17,6 +17,7 @@ import android.database.sqlite.SQLiteException;
 import br.com.andorm.AndOrmException;
 import br.com.andorm.binder.ObjectBinder;
 import br.com.andorm.persistence.tablemanager.TableManager;
+import br.com.andorm.property.PrimaryKeyProperty;
 import br.com.andorm.property.Property;
 import br.com.andorm.provider.Provider;
 import br.com.andorm.query.Criteria;
@@ -54,7 +55,7 @@ public class AndroidPersistenceManager implements PersistenceManager {
 	}
 
 	@Override
-	public void save(Object o) {
+	public long save(Object o) {
 		if(!isOpen())
 			open();
 		
@@ -75,19 +76,31 @@ public class AndroidPersistenceManager implements PersistenceManager {
 		if(cache.getBeforeSaveMethod() != null) {
 			invoke(o, cache.getBeforeSaveMethod()).withoutParams();
 		}
-		
+
+		Long primaryKey = 0L;
 		String tableName = cache.getTableName();
 		try {
-			database.insert(tableName, null, values);
-		} catch(SQLException e) {
+			primaryKey = database.insert(tableName, null, values);
+		} catch (SQLException e) {
 			throw new AndOrmPersistenceException(MessageFormat.format(bundle.getString("save_error"), o.getClass().getCanonicalName(), e.getMessage()));
 		}
-		
-		if(cache.getAfterSaveMethod() != null) {
+
+		PrimaryKeyProperty primaryKeyProperty = cache.getPk();
+		if (primaryKeyProperty.isAutoInc()) {
+			if (primaryKeyProperty.getDatabaseFieldType().equals(Integer.class)) {
+				primaryKeyProperty.set(o, primaryKey.intValue());
+			} else if (primaryKeyProperty.getDatabaseFieldType().equals(Long.class)) {
+				primaryKeyProperty.set(o, primaryKey);
+			}
+		}
+
+		if (cache.getAfterSaveMethod() != null) {
 			invoke(o, cache.getAfterSaveMethod()).withoutParams();
 		}
+
+		return primaryKey;
 	}
-	
+
 	@Override
 	public void delete(Object o) {
 		if(!isOpen())

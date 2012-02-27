@@ -35,7 +35,7 @@ public interface PersistenceManager {
 	 * @param o Entity to save
 	 * @throws AndOrmPersistenceException
 	 */
-	void save(Object o);
+	long save(Object o);
 	
 	/**
 	 * Delete a entity in the database
